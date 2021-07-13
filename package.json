@@ -1,0 +1,22 @@
+{
+  "name": "p_01",
+  "version": "1.0.0",
+  "description": "just a playground to mess around with SNS",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.1"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.918.0",
+    "eslint": "^7.25.0",
+    "eslint-config-airbnb": "^18.2.1",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jest": "^24.3.6",
+    "eslint-plugin-lodash": "^6.0.0",
+    "eslint-plugin-promise": "^4.2.1"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "env": {
+    "jest/globals": true
+  },
+  "extends": [
+    "airbnb/base",
+    "plugin:promise/recommended"
+  ],
+  "plugins": [
+    "jest",
+    "promise"
+  ],
+  "rules": {
+    "semi": "off"
+  }
+}

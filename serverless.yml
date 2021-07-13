@@ -1,0 +1,108 @@
+
+service:
+  name: SNS01
+
+frameworkVersion: ">=1.2.0 <2.0.0"
+
+custom:
+  stage: ${self:provider.stage, 'dev'}
+
+provider:
+  name: aws
+  tags:
+    env: ${env:ENVIRONMENT, "Development"}
+    stack: SNS_01
+  runtime: nodejs12.x
+  #If region is defined in the env, use it
+  ## Default to us-east-1
+  region: ${env:AWS_REGION, us-east-1}
+  # Deployment bucket as defined in ssm.  All lambdas will be deployed there
+  # Go ahead and delete the line below if you do not have it configured
+  deploymentBucket: ${ssm:s3-serverless-deployment}
+  versionFunctions: true
+  stackTags:
+      COMMIT_SHA: ${env:COMMIT_SHA, 'NO-SHA'}
+  # Allows us to reference `process.env[FEILD_NAME]` in our code
+  environment:
+    MESSAGE_TOPIC: !Ref SomeReferenceName
+    # Using NGrok to tunnel requests to localhost and monitor requests.
+    # check ngrok.com for more info.
+    # check localhost:4040/status once you have it runing and replace 
+    # "yourNgrokURLHere" with your address
+    # mine was https://91ddb64a7a11.ngrok.io, so I'd enter 91ddb64a7a11.ngrok.io
+    NGROK_HOST:  ${ssm:CHAT_HOST, yourNgrokURLHere}
+
+  # If a lambda does not complete in 30 seconds, it will end it's execution
+  timeout: 30
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "*"
+      Resource: "*"
+
+resources:
+  Resources:
+    # First name is a reference name to use in the stack
+    SomeReferenceName:
+      Type: AWS::SNS::Topic
+      Properties:
+        # Name of the actual AWS Resource
+        TopicName: SNS01
+    myDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: myDLQ
+    snsSQSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - Ref: myDLQ
+        PolicyDocument:
+          Statement:
+            - Action:
+                - "sqs:*"
+              Effect: "Allow"
+              Resource: "*"
+              Principal:
+                Service:
+                  - "sns.amazonaws.com"
+                  - "lambda.amazonaws.com"
+                AWS:
+                  - !Ref 'AWS::AccountId'
+
+functions:
+  publisher:
+    handler: publisher.publish
+
+  message-dispatcher-a:
+    # handler points to dispatcher.js, function a
+    handler: dispatcher.a
+    # if the lambda fails, it will not retry.
+    # Default is 3
+    maximumRetryAttempts: 0
+    #This lambda is triggered by an sns event
+    events:
+      - sns:
+          # Allows us to reference the SNS topic we have defined above
+          arn: !Ref SomeReferenceName
+          topicName: SNS01
+          redrivePolicy:
+            # IFF the lambda will not receive requests, SNS will forward the message to
+            ## myDLQ (defined above in Resources)
+            deadLetterTargetRef: myDLQ
+
+  message-dispatcher-b:
+    handler: dispatcher.b
+    maximumRetryAttempts: 0
+    events:
+      - sns:
+          arn: !Ref SomeReferenceName
+          topicName: SNS01
+          # redrivePolicy:
+          #   deadLetterTargetRef: myDLQ
+          filterPolicy:
+            # if message is sent with attributes ourExampleAttribute is values of [value1, value2]
+            ##  trigger the lambda
+            ourExampleAttribute:
+              - value1
+              - value2
